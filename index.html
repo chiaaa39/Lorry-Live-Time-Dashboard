@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,7 +10,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    ::-webkit-scrollbar { display: none; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-6 flex flex-col justify-between">
@@ -22,7 +23,7 @@
       <div class="h-4 w-4 rounded-full bg-emerald-500 animate-pulse" id="status-dot"></div>
       <div>
         <h1 class="text-3xl font-black tracking-wider text-emerald-400">KLSK WAREHOUSE DASHBOARD</h1>
-        <p class="text-xs text-slate-400 mt-1">Multi-Destination (Dest 1-5) Tracking System</p>
+        <p class="text-xs text-slate-400 mt-1">Multi-Destination & End Trip Live Monitoring</p>
       </div>
     </div>
     
@@ -38,15 +39,15 @@
   <!-- Metric Cards -->
   <section class="grid grid-cols-4 gap-6 mb-6">
     <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
-      <div class="text-slate-400 text-sm font-semibold uppercase mb-2">Total Inspections</div>
+      <div class="text-slate-400 text-sm font-semibold uppercase mb-2">Total / Inspections</div>
       <div id="stat-total" class="text-5xl font-black text-white">0</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
       <div class="text-slate-400 text-sm font-semibold uppercase mb-2">In Progress</div>
-      <div id="stat-in-progress" class="text-5xl font-black text-amber-400">0</div>
+      <div id="stat-pending" class="text-5xl font-black text-amber-400">0</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
-      <div class="text-slate-400 text-sm font-semibold uppercase mb-2">Completed / Arrived</div>
+      <div class="text-slate-400 text-sm font-semibold uppercase mb-2">Completed / Ended</div>
       <div id="stat-completed" class="text-5xl font-black text-emerald-400">0</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
@@ -58,50 +59,101 @@
   <!-- Data Table -->
   <main class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl overflow-hidden flex flex-col">
     <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-bold text-slate-300">Live Lorry Condition & Multi-Destination Activity Log</h2>
-      <span class="text-xs font-normal text-slate-500">Dest 1 (Required) | Dest 2-5 (Optional)</span>
+      <h2 class="text-xl font-bold text-slate-300">Live Lorry Condition & Route Status</h2>
+      <span class="text-xs text-slate-500">Click "View Details" to see photos & full destination logs</span>
     </div>
 
     <div class="flex-1 overflow-y-auto overflow-x-auto">
-      <table class="w-full text-left border-collapse min-w-[1100px]">
+      <table class="w-full text-left border-collapse min-w-[1000px]">
         <thead>
           <tr class="border-b border-slate-800 text-slate-400 text-sm uppercase tracking-wider sticky top-0 bg-slate-900 shadow-md">
             <th class="p-3 w-12">#</th>
             <th class="p-3">Inspection ID</th>
             <th class="p-3">Lorry Plate</th>
             <th class="p-3">Staff Name</th>
-            <th class="p-3 text-emerald-400 font-bold">Destination 1 <span class="text-rose-500">*</span></th>
-            <th class="p-3">Destination 2</th>
-            <th class="p-3">Destination 3</th>
-            <th class="p-3">Destination 4</th>
-            <th class="p-3">Destination 5</th>
-            <th class="p-3 text-center">Status</th>
+            <th class="p-3">Latest Progress</th>
+            <th class="p-3">End Trip Status</th>
+            <th class="p-3 text-center">Action</th>
           </tr>
         </thead>
         <tbody id="table-body" class="text-base font-medium divide-y divide-slate-800/60">
           <tr>
-            <td colspan="10" class="p-8 text-center text-slate-500">Loading Lorry Data...</td>
+            <td colspan="7" class="p-8 text-center text-slate-500">Loading Lorry Data...</td>
           </tr>
         </tbody>
       </table>
     </div>
   </main>
 
+  <!-- DETAIL MODAL (弹窗详情) -->
+  <div id="detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-6 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+        <div>
+          <h3 class="text-2xl font-black text-emerald-400 flex items-center gap-3">
+            <span>Trip Details: <span id="modal-id" class="text-white font-mono"></span></span>
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">
+            Lorry: <span id="modal-plate" class="text-amber-300 font-bold font-mono"></span> | Staff: <span id="modal-staff" class="text-white font-semibold"></span>
+          </p>
+        </div>
+        <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition-colors text-sm">
+          ✕ Close
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-900">
+        <!-- Destinations Timeline (1 to 5) -->
+        <div>
+          <h4 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Arrive Details (Dest 1 - 5)</h4>
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-3" id="modal-dests-container">
+            <!-- Dynamic arrive cards injected here -->
+          </div>
+        </div>
+
+        <!-- End Trip Section (From Sheet 1) -->
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-5">
+          <h4 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+            <span>End Trip Details (Sheet 1)</span>
+            <span id="modal-end-badge"></span>
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span class="text-slate-500 block text-xs">End Trip Status</span>
+              <span id="modal-end-status" class="font-bold text-white text-base">-</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block text-xs">Date & Time Ended</span>
+              <span id="modal-end-time" class="font-mono text-cyan-300 text-base">-</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block text-xs">End Photo / Verification</span>
+              <div id="modal-end-photo" class="mt-1">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Application Logic -->
   <script>
     // ==================== CONFIGURATION ====================
-    
-   const GOOGLE_SHEETS_CSVS = {
-      main: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=0&single=true&output=csv",
-      arrive1: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=1372083319&single=true&output=csv",
-      arrive2: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=185308115&single=true&output=csv",
-      arrive3: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=1811316874&single=true&output=csv",
-      arrive4: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=1444873659&single=true&output=csv",
-      arrive5: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=927013537&single=true&output=csv"
+    // 仅保留 6 个 CSV 链接（Sheet 1 主表 + Arrive 1~5 独立表）
+    const GOOGLE_SHEETS_CSVS = {
+      main: "YOUR_SHEET1_CSV_URL",
+      arrive1: "YOUR_ARRIVE1_CSV_URL",
+      arrive2: "YOUR_ARRIVE2_CSV_URL",
+      arrive3: "YOUR_ARRIVE3_CSV_URL",
+      arrive4: "YOUR_ARRIVE4_CSV_URL",
+      arrive5: "YOUR_ARRIVE5_CSV_URL"
     };
 
     const REFRESH_INTERVAL = 30000;
     let countdownValue = REFRESH_INTERVAL / 1000;
+    let cachedMergedData = [];
 
     function updateClock() {
       document.getElementById('clock').textContent = new Date().toLocaleTimeString();
@@ -123,6 +175,16 @@
       }
     }
 
+    function formatPhotoUrl(url) {
+      if (!url || url.trim() === '-' || url.trim() === '') return null;
+      let cleanUrl = url.trim();
+      if (cleanUrl.includes('drive.google.com') && cleanUrl.includes('id=')) {
+        const fileId = cleanUrl.split('id=')[1].split('&')[0];
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+      }
+      return cleanUrl;
+    }
+
     async function fetchWarehouseData() {
       const statusDot = document.getElementById('status-dot');
       const statusText = document.getElementById('status-text');
@@ -142,35 +204,57 @@
           safeFetchCSV(GOOGLE_SHEETS_CSVS.arrive5)
         ]);
 
-        const mergedData = mainRows.map(row => {
+        cachedMergedData = mainRows.map(row => {
           const inspectId = row['Inspection ID'] || row['ID'] || row['InspectionID'];
 
-          // Extract the arrival data from Destination 1 to Destination 5 sequentially
+          // 1. 提取 Arrive 1~5 数据 (来源于 Destination 独立表格)
           const dests = [0, 1, 2, 3, 4].map(i => {
-            if (!inspectId) return { arrived: false, address: '-' };
+            if (!inspectId) return { arrived: false, address: '-', time: '-', photo: null, status: 'Pending' };
             const match = arrives[i].find(a => (a['Inspection ID'] || a['ID']) === inspectId);
             if (match) {
-              const addr = match['GPS Address'] || match['Address'] || match['Location'];
-              const time = match[`Data&Time Arrive ${i + 1}`] || match['Time'] || match['Timestamp'];
-              if (addr || time) {
-                return {
-                  arrived: true,
-                  address: addr || 'Arrived',
-                  time: time || ''
-                };
-              }
+              const addr = match['GPS Address'] || match['Address'] || match['Location'] || '-';
+              const time = match[`Data&Time Arrive ${i + 1}`] || match['Data&Time Arrive'] || match['Time'] || match['Timestamp'] || '-';
+              const photo = match['Photo'] || match['Photo URL'] || match[`Photo Arrive ${i + 1}`] || null;
+              const status = match['Status'] || match['Arrive Status'] || 'Arrived';
+              return {
+                arrived: true,
+                address: addr,
+                time: time,
+                photo: formatPhotoUrl(photo),
+                rawPhotoUrl: photo,
+                status: status
+              };
             }
-            return { arrived: false, address: '-' };
+            return { arrived: false, address: '-', time: '-', photo: null, status: i === 0 ? 'Pending' : 'Optional' };
           });
+
+          // 2. 提取 End Trip 数据 (直接从 Sheet 1 提取)
+          const endStatusRaw = row['End Trip Status'] || row['End Status'] || row['Status'] || '-';
+          const endTimeRaw = row['Date&Time End Trip'] || row['End Trip Time'] || row['Date & Time End Trip'] || '-';
+          const endPhotoRaw = row['End Trip Photo'] || row['End Photo'] || row['Photo End Trip'] || null;
+
+          const isEnded = endStatusRaw.toLowerCase().includes('end') || 
+                          endStatusRaw.toLowerCase().includes('complete') || 
+                          endStatusRaw.toLowerCase().includes('done') || 
+                          (endTimeRaw !== '-' && endTimeRaw !== '');
+
+          const endTripData = {
+            ended: isEnded,
+            status: endStatusRaw !== '-' ? endStatusRaw : (isEnded ? 'Completed' : 'In Progress'),
+            time: endTimeRaw,
+            photo: formatPhotoUrl(endPhotoRaw),
+            rawPhotoUrl: endPhotoRaw
+          };
 
           return {
             ...row,
             inspectId,
-            dests
+            dests,
+            endTrip: endTripData
           };
         });
 
-        renderDashboard(mergedData);
+        renderDashboard(cachedMergedData);
 
         statusDot.className = "h-4 w-4 rounded-full bg-emerald-500 animate-pulse";
         statusText.textContent = "Live Feed Operational";
@@ -189,58 +273,29 @@
       const tbody = document.getElementById('table-body');
       tbody.innerHTML = '';
 
-      let InProgressCount = 0;
+      let pendingCount = 0;
       let completedCount = 0;
 
       data.forEach((row, index) => {
         const id = row.inspectId || `#${index + 1}`;
         const lorryPlate = row['Lorry Plate Number'] || row['Lorry Plate'] || row['Plate Number'] || '-';
         const staffName = row['Staff Name'] || row['Driver Name'] || '-';
-        const statusRaw = (row['Status'] || 'In Progress').toString();
-        const status = statusRaw.toLowerCase();
 
-        const isCompleted = status.includes('complete') || status.includes('done') || status.includes('arrived');
-
-        if (isCompleted) {
+        if (row.endTrip.ended) {
           completedCount++;
         } else {
-          InProgressCount++;
+          pendingCount++;
         }
 
-        // Generate HTML cells for columns 1 through 5 of Destinations
-        let destsHTML = '';
-        row.dests.forEach((d, dIdx) => {
-          if (d.arrived) {
-            destsHTML += `
-              <td class="p-3">
-                <div class="bg-emerald-950/60 border border-emerald-500/40 p-2 rounded-lg text-xs" title="${d.address}">
-                  <div class="text-emerald-400 font-bold flex items-center gap-1">
-                    <span>✓</span> Arrived
-                  </div>
-                  <div class="text-slate-300 truncate max-w-[140px] mt-0.5">${d.address}</div>
-                </div>
-              </td>`;
-          } else {
-            if (dIdx === 0) {
-              // Destination 1 is required
-              destsHTML += `
-                <td class="p-3">
-                  <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                    In Progress
-                  </span>
-                </td>`;
-            } else {
-              // Destination 2-5 are optional
-              destsHTML += `
-                <td class="p-3 text-slate-600 text-sm font-mono">-</td>`;
-            }
-          }
+        let latestProgress = 'At Warehouse / Start';
+        row.dests.forEach((d, idx) => {
+          if (d.arrived) latestProgress = `Arrived Dest ${idx + 1}`;
         });
+        if (row.endTrip.ended) latestProgress = 'Trip Ended';
 
-        let statusBadge = `<span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">${statusRaw}</span>`;
-        if (isCompleted) {
-          statusBadge = `<span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">${statusRaw}</span>`;
-        }
+        let endBadge = row.endTrip.ended 
+          ? `<span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">${row.endTrip.status}</span>`
+          : `<span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">In Progress</span>`;
 
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-800/50 transition-colors";
@@ -249,15 +304,89 @@
           <td class="p-3 font-mono font-bold text-emerald-300 text-sm">${id}</td>
           <td class="p-3 font-bold text-amber-300 font-mono text-lg">${lorryPlate}</td>
           <td class="p-3 font-semibold text-white text-sm">${staffName}</td>
-          ${destsHTML}
-          <td class="p-3 text-center">${statusBadge}</td>
+          <td class="p-3 text-cyan-400 font-mono font-semibold text-sm">${latestProgress}</td>
+          <td class="p-3">${endBadge}</td>
+          <td class="p-3 text-center">
+            <button onclick="openModal('${id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow transition-all">
+              View Details 🔍
+            </button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
 
       document.getElementById('stat-total').textContent = data.length;
-      document.getElementById('stat-in-progress').textContent = InProgressCount;
+      document.getElementById('stat-pending').textContent = pendingCount;
       document.getElementById('stat-completed').textContent = completedCount;
+    }
+
+    function openModal(inspectId) {
+      const item = cachedMergedData.find(d => d.inspectId === inspectId);
+      if (!item) return;
+
+      document.getElementById('modal-id').textContent = item.inspectId;
+      document.getElementById('modal-plate').textContent = item['Lorry Plate Number'] || item['Lorry Plate'] || '-';
+      document.getElementById('modal-staff').textContent = item['Staff Name'] || item['Driver Name'] || '-';
+
+      const destsContainer = document.getElementById('modal-dests-container');
+      destsContainer.innerHTML = '';
+
+      item.dests.forEach((d, idx) => {
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-xl border flex flex-col justify-between ${
+          d.arrived 
+            ? 'bg-slate-950 border-emerald-500/40' 
+            : 'bg-slate-950/40 border-slate-800 text-slate-600'
+        }`;
+
+        let photoHTML = '<span class="text-xs text-slate-600">No Photo</span>';
+        if (d.photo) {
+          photoHTML = `
+            <a href="${d.rawPhotoUrl || d.photo}" target="_blank" class="block mt-2">
+              <img src="${d.photo}" class="w-full h-24 object-cover rounded-lg border border-slate-700 hover:opacity-80 transition-opacity" alt="Dest ${idx + 1}">
+              <span class="text-[10px] text-emerald-400 underline block text-center mt-1">View Full Photo</span>
+            </a>`;
+        }
+
+        card.innerHTML = `
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <span class="font-bold text-xs ${d.arrived ? 'text-emerald-400' : 'text-slate-500'}">Dest ${idx + 1}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                d.arrived ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'
+              }">${d.status}</span>
+            </div>
+            <div class="text-[11px] text-slate-300 font-mono mb-1 truncate" title="${d.address}">${d.address}</div>
+            <div class="text-[10px] text-slate-500 font-mono">${d.time}</div>
+          </div>
+          ${photoHTML}
+        `;
+        destsContainer.appendChild(card);
+      });
+
+      // 渲染来自 Sheet 1 的 End Trip 字段
+      document.getElementById('modal-end-status').textContent = item.endTrip.status;
+      document.getElementById('modal-end-time').textContent = item.endTrip.time;
+      
+      const endPhotoContainer = document.getElementById('modal-end-photo');
+      if (item.endTrip.photo) {
+        endPhotoContainer.innerHTML = `
+          <a href="${item.endTrip.rawPhotoUrl || item.endTrip.photo}" target="_blank" class="inline-block">
+            <img src="${item.endTrip.photo}" class="h-20 object-cover rounded-lg border border-slate-700 hover:opacity-80 transition-opacity" alt="End Trip">
+          </a>`;
+      } else {
+        endPhotoContainer.innerHTML = '<span class="text-xs text-slate-500">No Photo Attached</span>';
+      }
+
+      document.getElementById('modal-end-badge').innerHTML = item.endTrip.ended
+        ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">ENDED</span>`
+        : `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">IN PROGRESS</span>`;
+
+      document.getElementById('detail-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('detail-modal').classList.add('hidden');
     }
 
     function startDashboard() {
