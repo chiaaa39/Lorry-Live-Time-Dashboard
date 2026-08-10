@@ -141,14 +141,14 @@
   <!-- Application Logic -->
   <script>
     // ==================== CONFIGURATION ====================
-    // 仅保留 6 个 CSV 链接（Sheet 1 主表 + Arrive 1~5 独立表）
-    const GOOGLE_SHEETS_CSVS = {
-      main: "YOUR_SHEET1_CSV_URL",
-      arrive1: "YOUR_ARRIVE1_CSV_URL",
-      arrive2: "YOUR_ARRIVE2_CSV_URL",
-      arrive3: "YOUR_ARRIVE3_CSV_URL",
-      arrive4: "YOUR_ARRIVE4_CSV_URL",
-      arrive5: "YOUR_ARRIVE5_CSV_URL"
+    
+     const GOOGLE_SHEETS_CSVS = {
+      main: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=0&single=true&output=csv",
+      arrive1: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=1372083319&single=true&output=csv",
+      arrive2: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=185308115&single=true&output=csv",
+      arrive3: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=1811316874&single=true&output=csv",
+      arrive4: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=1444873659&single=true&output=csv",
+      arrive5: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=927013537&single=true&output=csv"
     };
 
     const REFRESH_INTERVAL = 30000;
