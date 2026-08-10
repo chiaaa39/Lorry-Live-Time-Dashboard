@@ -151,6 +151,7 @@
       arrive5: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=927013537&single=true&output=csv"
     };
 
+    const APPSHEET_APP_NAME = "Lorry Inspection";
     const REFRESH_INTERVAL = 30000;
     let countdownValue = REFRESH_INTERVAL / 1000;
     let cachedMergedData = [];
@@ -175,13 +176,26 @@
       }
     }
 
-    function formatPhotoUrl(url) {
+    function formatPhotoUrl(url, tableName = '') {
       if (!url || url.trim() === '-' || url.trim() === '') return null;
       let cleanUrl = url.trim();
+
+      // 情况 A: 已经是 Google Drive 链接
       if (cleanUrl.includes('drive.google.com') && cleanUrl.includes('id=')) {
         const fileId = cleanUrl.split('id=')[1].split('&')[0];
         return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
       }
+
+      // 情况 B: 已经是完整的 HTTP/HTTPS 链接
+      if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+        return cleanUrl;
+      }
+
+      // 情况 C: AppSheet 的相对路径 (例如 "Arrive_Images/xyz.jpg")
+      if (APPSHEET_APP_NAME && !APPSHEET_APP_NAME.includes("YourApp")) {
+        return `https://www.appsheet.com/template/gettablefileurl?appName=${encodeURIComponent(APPSHEET_APP_NAME)}&tableName=${encodeURIComponent(tableName)}&fileName=${encodeURIComponent(cleanUrl)}`;
+      }
+
       return cleanUrl;
     }
 
