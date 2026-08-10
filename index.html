@@ -4,10 +4,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KLSK Warehouse Live Dashboard - Lorry Condition</title>
+  <title>KLSK Warehouse Live Dashboard - Multi-Destination</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- PapaParse CDN (用于解析 Google Sheets CSV 数据) -->
+  <!-- PapaParse CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -22,7 +22,7 @@
       <div class="h-4 w-4 rounded-full bg-emerald-500 animate-pulse" id="status-dot"></div>
       <div>
         <h1 class="text-3xl font-black tracking-wider text-emerald-400">KLSK WAREHOUSE DASHBOARD</h1>
-        <p class="text-xs text-slate-400 mt-1">Lorry Condition & Multi-Destination Tracking System</p>
+        <p class="text-xs text-slate-400 mt-1">Multi-Destination (Dest 1-5) Tracking System</p>
       </div>
     </div>
     
@@ -43,7 +43,7 @@
     </div>
     <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
       <div class="text-slate-400 text-sm font-semibold uppercase mb-2">In Progress</div>
-      <div id="stat-pending" class="text-5xl font-black text-amber-400">0</div>
+      <div id="stat-in-progress" class="text-5xl font-black text-amber-400">0</div>
     </div>
     <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
       <div class="text-slate-400 text-sm font-semibold uppercase mb-2">Completed / Arrived</div>
@@ -58,26 +58,29 @@
   <!-- Data Table -->
   <main class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl overflow-hidden flex flex-col">
     <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-bold text-slate-300">Live Lorry Condition & GPS Activity Log</h2>
-      <span class="text-xs font-normal text-slate-500">Auto-merging Sheet1 + Destinations 1-5 (Syncs every 30s)</span>
+      <h2 class="text-xl font-bold text-slate-300">Live Lorry Condition & Multi-Destination Activity Log</h2>
+      <span class="text-xs font-normal text-slate-500">Dest 1 (Required) | Dest 2-5 (Optional)</span>
     </div>
 
-    <div class="flex-1 overflow-y-auto">
-      <table class="w-full text-left border-collapse">
+    <div class="flex-1 overflow-y-auto overflow-x-auto">
+      <table class="w-full text-left border-collapse min-w-[1100px]">
         <thead>
-          <tr class="border-b border-slate-800 text-slate-400 text-lg sticky top-0 bg-slate-900 shadow-md">
-            <th class="p-4">#</th>
-            <th class="p-4">Inspection ID</th>
-            <th class="p-4">Lorry Plate</th>
-            <th class="p-4">Staff Name</th>
-            <th class="p-4">Latest Location</th>
-            <th class="p-4">GPS Address</th>
-            <th class="p-4">Status</th>
+          <tr class="border-b border-slate-800 text-slate-400 text-sm uppercase tracking-wider sticky top-0 bg-slate-900 shadow-md">
+            <th class="p-3 w-12">#</th>
+            <th class="p-3">Inspection ID</th>
+            <th class="p-3">Lorry Plate</th>
+            <th class="p-3">Staff Name</th>
+            <th class="p-3 text-emerald-400 font-bold">Destination 1 <span class="text-rose-500">*</span></th>
+            <th class="p-3">Destination 2</th>
+            <th class="p-3">Destination 3</th>
+            <th class="p-3">Destination 4</th>
+            <th class="p-3">Destination 5</th>
+            <th class="p-3 text-center">Status</th>
           </tr>
         </thead>
-        <tbody id="table-body" class="text-xl font-medium divide-y divide-slate-800/60">
+        <tbody id="table-body" class="text-base font-medium divide-y divide-slate-800/60">
           <tr>
-            <td colspan="7" class="p-8 text-center text-slate-500">Loading Lorry Data...</td>
+            <td colspan="10" class="p-8 text-center text-slate-500">Loading Lorry Data...</td>
           </tr>
         </tbody>
       </table>
@@ -87,8 +90,8 @@
   <!-- Application Logic -->
   <script>
     // ==================== CONFIGURATION ====================
-    // 替换为 Google Sheets 发布出的 CSV 链接 (File -> Share -> Publish to web -> CSV)
-    const GOOGLE_SHEETS_CSVS = {
+    
+   const GOOGLE_SHEETS_CSVS = {
       main: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=0&single=true&output=csv",
       arrive1: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=1372083319&single=true&output=csv",
       arrive2: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=185308115&single=true&output=csv",
@@ -97,96 +100,103 @@
       arrive5: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=927013537&single=true&output=csv"
     };
 
-    const REFRESH_INTERVAL = 30000; // 30 秒自动刷新
+    const REFRESH_INTERVAL = 30000;
     let countdownValue = REFRESH_INTERVAL / 1000;
 
-    // 顶部实时时钟
     function updateClock() {
       document.getElementById('clock').textContent = new Date().toLocaleTimeString();
     }
     setInterval(updateClock, 1000);
     updateClock();
 
-    // 并行抓取主表与 5 个 Destination 子表并整合
+    async function safeFetchCSV(url) {
+      if (!url || url.includes("YOUR_")) return [];
+      try {
+        const res = await fetch(`${url}&t=${new Date().getTime()}`);
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        const text = await res.text();
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+        return parsed.data || [];
+      } catch (err) {
+        console.warn("Sheet fetch warning/failed for:", url, err);
+        return [];
+      }
+    }
+
     async function fetchWarehouseData() {
       const statusDot = document.getElementById('status-dot');
       const statusText = document.getElementById('status-text');
 
       try {
-        const timestamp = new Date().getTime();
-        
-        // 同时请求 6 个 CSV 文件
-        const [mainRes, a1Res, a2Res, a3Res, a4Res, a5Res] = await Promise.all([
-          fetch(`${GOOGLE_SHEETS_CSVS.main}&t=${timestamp}`).then(r => r.text()),
-          fetch(`${GOOGLE_SHEETS_CSVS.arrive1}&t=${timestamp}`).then(r => r.text()),
-          fetch(`${GOOGLE_SHEETS_CSVS.arrive2}&t=${timestamp}`).then(r => r.text()),
-          fetch(`${GOOGLE_SHEETS_CSVS.arrive3}&t=${timestamp}`).then(r => r.text()),
-          fetch(`${GOOGLE_SHEETS_CSVS.arrive4}&t=${timestamp}`).then(r => r.text()),
-          fetch(`${GOOGLE_SHEETS_CSVS.arrive5}&t=${timestamp}`).then(r => r.text())
+        const mainRows = await safeFetchCSV(GOOGLE_SHEETS_CSVS.main);
+
+        if (!mainRows || mainRows.length === 0) {
+          throw new Error("Main Sheet returned no data or failed to load.");
+        }
+
+        const arrives = await Promise.all([
+          safeFetchCSV(GOOGLE_SHEETS_CSVS.arrive1),
+          safeFetchCSV(GOOGLE_SHEETS_CSVS.arrive2),
+          safeFetchCSV(GOOGLE_SHEETS_CSVS.arrive3),
+          safeFetchCSV(GOOGLE_SHEETS_CSVS.arrive4),
+          safeFetchCSV(GOOGLE_SHEETS_CSVS.arrive5)
         ]);
 
-        const mainRows = Papa.parse(mainRes, { header: true, skipEmptyLines: true }).data;
-        const arrives = [
-          Papa.parse(a1Res, { header: true, skipEmptyLines: true }).data,
-          Papa.parse(a2Res, { header: true, skipEmptyLines: true }).data,
-          Papa.parse(a3Res, { header: true, skipEmptyLines: true }).data,
-          Papa.parse(a4Res, { header: true, skipEmptyLines: true }).data,
-          Papa.parse(a5Res, { header: true, skipEmptyLines: true }).data
-        ];
-
-        // 拼接数据：根据 Inspection ID 从 Destination 5 到 1 查找最新的到达站点
         const mergedData = mainRows.map(row => {
-          const inspectId = row['Inspection ID'];
-          let latestDest = 'Start / Base';
-          let latestAddress = '-';
+          const inspectId = row['Inspection ID'] || row['ID'] || row['InspectionID'];
 
-          for (let i = 4; i >= 0; i--) {
-            const match = arrives[i].find(a => a['Inspection ID'] === inspectId);
-            if (match && (match['GPS Address'] || match[`Data&Time Arrive ${i + 1}`])) {
-              latestDest = `Destination ${i + 1}`;
-              latestAddress = match['GPS Address'] || 'Arrived';
-              break;
+          // Extract the arrival data from Destination 1 to Destination 5 sequentially
+          const dests = [0, 1, 2, 3, 4].map(i => {
+            if (!inspectId) return { arrived: false, address: '-' };
+            const match = arrives[i].find(a => (a['Inspection ID'] || a['ID']) === inspectId);
+            if (match) {
+              const addr = match['GPS Address'] || match['Address'] || match['Location'];
+              const time = match[`Data&Time Arrive ${i + 1}`] || match['Time'] || match['Timestamp'];
+              if (addr || time) {
+                return {
+                  arrived: true,
+                  address: addr || 'Arrived',
+                  time: time || ''
+                };
+              }
             }
-          }
+            return { arrived: false, address: '-' };
+          });
 
           return {
             ...row,
-            latestDest,
-            latestAddress
+            inspectId,
+            dests
           };
         });
 
         renderDashboard(mergedData);
 
-        // 更新状态指示器
         statusDot.className = "h-4 w-4 rounded-full bg-emerald-500 animate-pulse";
         statusText.textContent = "Live Feed Operational";
         statusText.className = "text-emerald-400 font-medium";
         document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
 
       } catch (error) {
-        console.error("Data Fetch Error:", error);
+        console.error("Dashboard Sync Error:", error);
         statusDot.className = "h-4 w-4 rounded-full bg-rose-500 animate-ping";
         statusText.textContent = "Sync Offline";
         statusText.className = "text-rose-400 font-bold";
       }
     }
 
-    // 渲染表格
     function renderDashboard(data) {
       const tbody = document.getElementById('table-body');
       tbody.innerHTML = '';
 
-      let pendingCount = 0;
+      let InProgressCount = 0;
       let completedCount = 0;
 
       data.forEach((row, index) => {
-        const id = row['Inspection ID'] || `#${index + 1}`;
-        const lorryPlate = row['Lorry Plate Number'] || '-';
-        const staffName = row['Staff Name'] || '-';
-        const latestDest = row.latestDest || 'Base';
-        const gpsAddress = row.latestAddress || '-';
-        const statusRaw = (row['Status'] || 'Pending').toString();
+        const id = row.inspectId || `#${index + 1}`;
+        const lorryPlate = row['Lorry Plate Number'] || row['Lorry Plate'] || row['Plate Number'] || '-';
+        const staffName = row['Staff Name'] || row['Driver Name'] || '-';
+        const statusRaw = (row['Status'] || 'In Progress').toString();
         const status = statusRaw.toLowerCase();
 
         const isCompleted = status.includes('complete') || status.includes('done') || status.includes('arrived');
@@ -194,34 +204,62 @@
         if (isCompleted) {
           completedCount++;
         } else {
-          pendingCount++;
+          InProgressCount++;
         }
 
-        let statusBadge = `<span class="px-3 py-1 rounded-full text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">${statusRaw}</span>`;
+        // Generate HTML cells for columns 1 through 5 of Destinations
+        let destsHTML = '';
+        row.dests.forEach((d, dIdx) => {
+          if (d.arrived) {
+            destsHTML += `
+              <td class="p-3">
+                <div class="bg-emerald-950/60 border border-emerald-500/40 p-2 rounded-lg text-xs" title="${d.address}">
+                  <div class="text-emerald-400 font-bold flex items-center gap-1">
+                    <span>✓</span> Arrived
+                  </div>
+                  <div class="text-slate-300 truncate max-w-[140px] mt-0.5">${d.address}</div>
+                </div>
+              </td>`;
+          } else {
+            if (dIdx === 0) {
+              // Destination 1 is required
+              destsHTML += `
+                <td class="p-3">
+                  <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                    In Progress
+                  </span>
+                </td>`;
+            } else {
+              // Destination 2-5 are optional
+              destsHTML += `
+                <td class="p-3 text-slate-600 text-sm font-mono">-</td>`;
+            }
+          }
+        });
+
+        let statusBadge = `<span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">${statusRaw}</span>`;
         if (isCompleted) {
-          statusBadge = `<span class="px-3 py-1 rounded-full text-sm font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">${statusRaw}</span>`;
+          statusBadge = `<span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">${statusRaw}</span>`;
         }
 
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-800/50 transition-colors";
         tr.innerHTML = `
-          <td class="p-4 text-slate-500 font-mono">${index + 1}</td>
-          <td class="p-4 font-mono font-bold text-emerald-300">${id}</td>
-          <td class="p-4 font-bold text-amber-300 font-mono text-2xl">${lorryPlate}</td>
-          <td class="p-4 font-semibold text-white">${staffName}</td>
-          <td class="p-4 font-mono font-bold text-cyan-400">${latestDest}</td>
-          <td class="p-4 text-slate-300 text-base max-w-xs truncate" title="${gpsAddress}">${gpsAddress}</td>
-          <td class="p-4">${statusBadge}</td>
+          <td class="p-3 text-slate-500 font-mono text-sm">${index + 1}</td>
+          <td class="p-3 font-mono font-bold text-emerald-300 text-sm">${id}</td>
+          <td class="p-3 font-bold text-amber-300 font-mono text-lg">${lorryPlate}</td>
+          <td class="p-3 font-semibold text-white text-sm">${staffName}</td>
+          ${destsHTML}
+          <td class="p-3 text-center">${statusBadge}</td>
         `;
         tbody.appendChild(tr);
       });
 
       document.getElementById('stat-total').textContent = data.length;
-      document.getElementById('stat-pending').textContent = pendingCount;
+      document.getElementById('stat-in-progress').textContent = InProgressCount;
       document.getElementById('stat-completed').textContent = completedCount;
     }
 
-    // 启动定时器与数据抓取
     function startDashboard() {
       fetchWarehouseData();
       setInterval(() => {
