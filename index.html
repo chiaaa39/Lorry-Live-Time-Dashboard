@@ -142,6 +142,8 @@
   <script>
     // ==================== CONFIGURATION ====================
     
+    const APPSHEET_APP_NAME = "LorryInspection-714600281";
+
      const GOOGLE_SHEETS_CSVS = {
       main: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=0&single=true&output=csv",
       arrive1: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=1372083319&single=true&output=csv",
@@ -151,7 +153,6 @@
       arrive5: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQYAxp3h1Hp1Td2t9c6WsWm0SrXbKmIq0kdcBkoueW29gvi357tKTgpGOS22nZ9RAS5OJ6gjLj7Qn9K/pub?gid=927013537&single=true&output=csv"
     };
 
-    const APPSHEET_APP_NAME = "Lorry Inspection";
     const REFRESH_INTERVAL = 30000;
     let countdownValue = REFRESH_INTERVAL / 1000;
     let cachedMergedData = [];
@@ -245,7 +246,6 @@
           // 2. 提取 End Trip 数据 (直接从 Sheet 1 提取)
           const endStatusRaw = row['End Trip Status'] || row['End Status'] || row['Status'] || '-';
           const endTimeRaw = row['Date&Time End Trip'] || row['End Trip Time'] || row['Date & Time End Trip'] || '-';
-          const endPhotoRaw = row['End Trip Photo'] || row['End Photo'] || row['Photo End Trip'] || null;
 
           const isEnded = endStatusRaw.toLowerCase().includes('end') || 
                           endStatusRaw.toLowerCase().includes('complete') || 
@@ -256,8 +256,6 @@
             ended: isEnded,
             status: endStatusRaw !== '-' ? endStatusRaw : (isEnded ? 'Completed' : 'In Progress'),
             time: endTimeRaw,
-            photo: formatPhotoUrl(endPhotoRaw),
-            rawPhotoUrl: endPhotoRaw
           };
 
           return {
@@ -322,7 +320,7 @@
           <td class="p-3">${endBadge}</td>
           <td class="p-3 text-center">
             <button onclick="openModal('${id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow transition-all">
-              View Details 🔍
+              View Details
             </button>
           </td>
         `;
