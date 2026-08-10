@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KLSK Warehouse Live Dashboard</title>
+  <!-- Tailwind CSS CDN for high-contrast big screen UI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PapaParse CDN for parsing CSV data from Google Sheets -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    /* TV display optimizations */
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    ::-webkit-scrollbar { display: none; } /* Hide scrollbars for TV presentation */
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6 flex flex-col justify-between">
+
+  <!-- Header & Status Bar -->
+  <header class="flex justify-between items-center bg-slate-900 border border-slate-800 p-5 rounded-2xl mb-6 shadow-2xl">
+    <div class="flex items-center gap-4">
+      <div class="h-4 w-4 rounded-full bg-emerald-500 animate-pulse" id="status-dot"></div>
+      <h1 class="text-3xl font-black tracking-wider text-emerald-400">KLSK WAREHOUSE DASHBOARD</h1>
+    </div>
+    
+    <div class="flex items-center gap-8 text-slate-400 font-mono text-lg">
+      <div>Time: <span id="clock" class="text-white font-bold">00:00:00</span></div>
+      <div>Refresh in: <span id="countdown" class="text-emerald-400 font-bold">30s</span></div>
+      <div class="text-xs px-3 py-1 bg-slate-800 rounded-lg border border-slate-700">
+        Status: <span id="status-text" class="text-emerald-400">Operational</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Key Metrics Section -->
+  <section class="grid grid-cols-4 gap-6 mb-6">
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+      <div class="text-slate-400 text-sm font-semibold uppercase mb-2">Total Records</div>
+      <div id="stat-total" class="text-5xl font-black text-white">0</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+      <div class="text-slate-400 text-sm font-semibold uppercase mb-2">Pending</div>
+      <div id="stat-pending" class="text-5xl font-black text-amber-400">0</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+      <div class="text-slate-400 text-sm font-semibold uppercase mb-2">Completed</div>
+      <div id="stat-completed" class="text-5xl font-black text-emerald-400">0</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg">
+      <div class="text-slate-400 text-sm font-semibold uppercase mb-2">Last Updated</div>
+      <div id="last-updated" class="text-2xl font-bold text-slate-300 mt-3 font-mono">Not Updated</div>
+    </div>
+  </section>
+
+  <!-- Main Data Table -->
+  <main class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl overflow-hidden flex flex-col">
+    <h2 class="text-xl font-bold mb-4 text-slate-300 flex items-center justify-between">
+      <span>Live Inventory & Dispatch Logs</span>
+      <span class="text-xs font-normal text-slate-500">Auto-refreshes every 30s</span>
+    </h2>
+
+    <div class="flex-1 overflow-y-auto">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="border-b border-slate-800 text-slate-400 text-lg sticky top-0 bg-slate-900">
+            <th class="p-4">#</th>
+            <th class="p-4">Ref / ID</th>
+            <th class="p-4">Item Description</th>
+            <th class="p-4">Qty</th>
+            <th class="p-4">Status</th>
+          </tr>
+        </thead>
+        <tbody id="table-body" class="text-xl font-medium divide-y divide-slate-800/60">
+          <tr>
+            <td colspan="5" class="p-8 text-center text-slate-500">Loading live data...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Application Logic -->
+  <script>
+    // ==================== CONFIGURATION ====================
+    // Replace with your published Google Sheets CSV or Apps Script URL
+    const DATA_URL = "https://docs.google.com/spreadsheets/d/e/YOUR_PUBLISHED_CSV_URL/pub?output=csv";
+    
+    // Data type: 'CSV' or 'JSON'
+    const DATA_TYPE = 'CSV'; 
+    
+    // Auto-refresh interval in milliseconds (30000ms = 30 seconds)
+    const REFRESH_INTERVAL = 30000; 
+    // =======================================================
+
+    let countdownValue = REFRESH_INTERVAL / 1000;
+
+    // 1. Live Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // 2. Fetch and Parse Data
+    async function fetchData() {
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+
+      try {
+        // Cache-busting query parameter prevents TV browsers from serving stale cache
+        const response = await fetch(`${DATA_URL}&t=${new Date().getTime()}`);
+        if (!response.ok) throw new Error("Network response error");
+
+        let rawData = [];
+
+        if (DATA_TYPE === 'CSV') {
+          const csvText = await response.text();
+          const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+          rawData = parsed.data;
+        } else {
+          rawData = await response.json();
+        }
+
+        renderDashboard(rawData);
+
+        // Update system status indicator
+        statusDot.className = "h-4 w-4 rounded-full bg-emerald-500 animate-pulse";
+        statusText.textContent = "Operational";
+        statusText.className = "text-emerald-400";
+        document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+
+      } catch (error) {
+        console.error("Fetch Data Error:", error);
+        // Network dropout protection: preserve existing screen data
+        statusDot.className = "h-4 w-4 rounded-full bg-rose-500 animate-ping";
+        statusText.textContent = "Connection Error (Showing Cached Data)";
+        statusText.className = "text-rose-400 font-bold";
+      }
+    }
+
+    // 3. Render Data to Table and Metric Cards
+    function renderDashboard(data) {
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+
+      let pendingCount = 0;
+      let completedCount = 0;
+
+      data.forEach((row, index) => {
+        // Map key names according to your Google Sheet header titles
+        const id = row['ID'] || row['Ref'] || row['Order ID'] || `#${index + 1}`;
+        const item = row['Item'] || row['Description'] || row['Name'] || '-';
+        const qty = row['Qty'] || row['Quantity'] || '1';
+        const status = (row['Status'] || 'Pending').toLowerCase();
+
+        // Status counters
+        if (status.includes('complete') || status.includes('done') || status.includes('arrived')) {
+          completedCount++;
+        } else {
+          pendingCount++;
+        }
+
+        // Status badge styling
+        let statusBadge = `<span class="px-3 py-1 rounded-full text-sm font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Pending</span>`;
+        if (status.includes('complete') || status.includes('done') || status.includes('arrived')) {
+          statusBadge = `<span class="px-3 py-1 rounded-full text-sm font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Completed</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/50 transition-colors";
+        tr.innerHTML = `
+          <td class="p-4 text-slate-500 font-mono">${index + 1}</td>
+          <td class="p-4 font-mono font-bold text-emerald-300">${id}</td>
+          <td class="p-4 font-semibold text-white">${item}</td>
+          <td class="p-4 font-mono text-slate-300">${qty}</td>
+          <td class="p-4">${statusBadge}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Update stat cards
+      document.getElementById('stat-total').textContent = data.length;
+      document.getElementById('stat-pending').textContent = pendingCount;
+      document.getElementById('stat-completed').textContent = completedCount;
+    }
+
+    // 4. Countdown Timer & Auto-refresh Trigger
+    function startAutoRefresh() {
+      fetchData(); // Initial load
+
+      setInterval(() => {
+        countdownValue--;
+        if (countdownValue <= 0) {
+          fetchData();
+          countdownValue = REFRESH_INTERVAL / 1000;
+        }
+        document.getElementById('countdown').textContent = `${countdownValue}s`;
+      }, 1000);
+    }
+
+    window.addEventListener('DOMContentLoaded', startAutoRefresh);
+  </script>
+</body>
+</html>
