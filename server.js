@@ -29,12 +29,13 @@ app.get('/api/dashboard', async (req, res) => {
   try {
     const dataDir = path.join(__dirname, 'data');
     
-    const staffList = await readCSV(path.join(dataDir, 'Lorry condition-Staff Details.csv'));
-    const mainOrders = await readCSV(path.join(dataDir, 'Lorry condition-Sheet1.csv'));
+    // 匹配 GitHub 上实际的文件名（使用空格和 - 符号）
+    const staffList = await readCSV(path.join(dataDir, 'Lorry condition - Staff Details.csv'));
+    const mainOrders = await readCSV(path.join(dataDir, 'Lorry condition - Sheet1.csv'));
     
     const arrives = {};
     for (let i = 1; i <= 5; i++) {
-      arrives[`arrive_${i}`] = await readCSV(path.join(dataDir, `Lorry condition-Arrive_${i}.csv`));
+      arrives[`arrive_${i}`] = await readCSV(path.join(dataDir, `Lorry condition - Arrive ${i}.csv`));
     }
 
     const mergedData = mainOrders.map(order => {
