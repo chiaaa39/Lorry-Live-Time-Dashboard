@@ -1,5 +1,4 @@
 
-
 let dashboardData = { staffs: [], orders: [] };
 
 function updateClock() {
@@ -44,6 +43,12 @@ function populateStaffDropdown() {
 function renderDashboard() {
   const selectedStaff = document.getElementById('staffFilter').value;
   const grid = document.getElementById('ordersGrid');
+  
+  if (!grid) return;
+
+  // 1. 保存当前滚动位置，防止每 15 秒重新渲染时页面跳回顶部
+  const savedScrollTop = grid.scrollTop;
+
   grid.innerHTML = '';
 
   const filteredOrders = selectedStaff === 'ALL'
@@ -108,14 +113,52 @@ function renderDashboard() {
 
     grid.appendChild(card);
   });
+
+  // 2. 恢复先前的滚动高度
+  grid.scrollTop = savedScrollTop;
 }
 
 document.getElementById('staffFilter').addEventListener('change', renderDashboard);
 
-// 初始化与定时轮询（ Live Time）
+// 时钟与定时轮询数据 (Live Time)
 setInterval(updateClock, 1000);
 updateClock();
 
 fetchDashboardData();
 // TV 端每 15 秒自动更新一次最新数据
 setInterval(fetchDashboardData, 15000);
+
+// 定义自动滚动函数
+function startAutoScroll(containerSelector) {
+  const container = document.querySelector(containerSelector);
+  if (!container) return;
+
+  const speed = 0.8; // 滚动速度，越小越平滑
+  let isPaused = false;
+
+  function step() {
+    if (!isPaused && container) {
+      container.scrollTop += speed;
+
+      // 触底重置回顶部
+      const reachedBottom = Math.ceil(container.scrollTop + container.clientHeight) >= container.scrollHeight;
+      if (reachedBottom) {
+        container.scrollTop = 0;
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // 悬停/触摸暂停
+  container.addEventListener('mouseenter', () => isPaused = true);
+  container.addEventListener('mouseleave', () => isPaused = false);
+  container.addEventListener('touchstart', () => isPaused = true, { passive: true });
+  container.addEventListener('touchend', () => isPaused = false);
+
+  step();
+}
+
+// 启动自动滚动（绑定你的 #ordersGrid 容器）
+document.addEventListener('DOMContentLoaded', () => {
+  startAutoScroll('#ordersGrid'); 
+});
